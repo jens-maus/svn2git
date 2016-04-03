@@ -206,7 +206,7 @@ Options Reference
     Specific options:
             --rebase                     Instead of cloning a new project, rebase an existing one against SVN
             --username NAME              Username for transports that needs it (http(s), svn)
-            --password PASS              Password for transports that needs it (http(s), svn)
+            --password PASSWORD          Password for transports that needs it (http(s), svn)
             --trunk TRUNK_PATH           Subpath to trunk from repository URL (default: trunk)
             --branches BRANCHES_PATH     Subpath to branches from repository URL (default: branches)
             --tags TAGS_PATH             Subpath to tags from repository URL (default: tags)
