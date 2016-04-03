@@ -171,6 +171,16 @@ svn2git will load it out of there. This allows you to build up one authors
 file for all your projects and have it loaded for each repository that you
 migrate.
 
+If your project has many contributors or tracking down the information for
+every author is unfeasible, you can use the --authors-prog option:
+
+    $ svn2git http://svn.example.com/path/to/repo --authors-prog ~/authors.sh
+
+If specified, for each svn committer name that does not exist in the authors
+file, the given file is executed with the committer name as the first argument.
+The program is expected to return a single line of the form "Name &lt;email&gt;",
+which will be created as if included in the authors file. This script can also be placed into `~/.svn2git/authors-prog` and svn2git will load it from there.
+
 If you need a jump start on figuring out what users made changes in your
 svn repositories the following command sequence might help. It grabs all
 the logs from the svn repository, pulls out all the names from the commits,
@@ -219,6 +229,7 @@ Options Reference
                                          Start importing from SVN revision START_REV; optionally end at END_REV
         -m, --metadata                   Include metadata in git logs (git-svn-id)
             --authors AUTHORS_FILE       Path to file containing svn-to-git authors mapping (default: ~/.svn2git/authors)
+            --authors-prog AUTHORS_PROG  Path to script containing svn-to-git authors mapping (default: ~/.svn2git/authors-prog)
             --exclude REGEX              Specify a Perl regular expression to filter paths when fetching; can be used multiple times
         -v, --verbose                    Be verbose in logging -- useful for debugging issues
     
