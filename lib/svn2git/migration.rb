@@ -55,6 +55,7 @@ module Svn2Git
       options[:username] = nil
       options[:password] = nil
       options[:rebasebranch] = false
+      options[:complextags] = false
 
       if File.exists?(File.expand_path(DEFAULT_AUTHORS_FILE))
         options[:authors] = DEFAULT_AUTHORS_FILE
@@ -125,6 +126,10 @@ module Svn2Git
 
         opts.on('-m', '--metadata', 'Include metadata in git logs (git-svn-id)') do
           options[:metadata] = true
+        end
+
+        opts.on('--complextags', 'Create tags from the tag commit instead the tag commit parent') do
+          options[:complextags] = true
         end
 
         opts.on('--authors AUTHORS_FILE', "Path to file containing svn-to-git authors mapping (default: #{DEFAULT_AUTHORS_FILE})") do |authors|
@@ -301,7 +306,11 @@ module Svn2Git
 
         original_git_committer_date = ENV['GIT_COMMITTER_DATE']
         ENV['GIT_COMMITTER_DATE'] = escape_quotes(date)
-        run_command("git tag -a -m \"#{escape_quotes(subject)}\" \"#{escape_quotes(id)}\" \"#{escape_quotes(tag)}\"")
+        if @options[:complextags]
+            run_command("git tag -a -m \"#{escape_quotes(subject)}\" \"#{escape_quotes(id)}\" \"#{escape_quotes(tag)}\"")
+        else
+            run_command("git tag -a -m \"#{escape_quotes(subject)}\" \"#{escape_quotes(id)}\" \"#{escape_quotes(tag)}^\"")
+        end
         ENV['GIT_COMMITTER_DATE'] = original_git_committer_date
 
         run_command("git branch -d -r \"#{escape_quotes(tag)}\"")
