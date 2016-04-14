@@ -171,6 +171,16 @@ svn2git will load it out of there. This allows you to build up one authors
 file for all your projects and have it loaded for each repository that you
 migrate.
 
+If your project has many contributors or tracking down the information for
+every author is unfeasible, you can use the --authors-prog option:
+
+    $ svn2git http://svn.example.com/path/to/repo --authors-prog ~/authors.sh
+
+If specified, for each svn committer name that does not exist in the authors
+file, the given file is executed with the committer name as the first argument.
+The program is expected to return a single line of the form "Name &lt;email&gt;",
+which will be created as if included in the authors file. This script can also be placed into `~/.svn2git/authors-prog` and svn2git will load it from there.
+
 If you need a jump start on figuring out what users made changes in your
 svn repositories the following command sequence might help. It grabs all
 the logs from the svn repository, pulls out all the names from the commits,
@@ -202,11 +212,11 @@ Options Reference
 
     $ svn2git --help
     Usage: svn2git SVN_URL [options]
-    
+
     Specific options:
             --rebase                     Instead of cloning a new project, rebase an existing one against SVN
             --username NAME              Username for transports that needs it (http(s), svn)
-            --password PASS              Password for transports that needs it (http(s), svn)
+            --password PASSWORD          Password for transports that needs it (http(s), svn)
             --trunk TRUNK_PATH           Subpath to trunk from repository URL (default: trunk)
             --branches BRANCHES_PATH     Subpath to branches from repository URL (default: branches)
             --tags TAGS_PATH             Subpath to tags from repository URL (default: tags)
@@ -218,39 +228,29 @@ Options Reference
             --revision START_REV[:END_REV]
                                          Start importing from SVN revision START_REV; optionally end at END_REV
         -m, --metadata                   Include metadata in git logs (git-svn-id)
+            --complextags                Create tags from the tag commit instead the tag commit parent
             --authors AUTHORS_FILE       Path to file containing svn-to-git authors mapping (default: ~/.svn2git/authors)
+            --authors-prog AUTHORS_PROG  Path to script containing svn-to-git authors mapping (default: ~/.svn2git/authors-prog)
             --exclude REGEX              Specify a Perl regular expression to filter paths when fetching; can be used multiple times
         -v, --verbose                    Be verbose in logging -- useful for debugging issues
-    
+
         -h, --help                       Show this message
 
 FAQ
 ---
 
-1. Why don't the tags show up in the master branch?
+1. Why is the code different from svn when I check out a tag?
 
-    The tags won't show up in the master branch because the tags are actually
-    tied to the commits that were created in svn when the user made the tag.
-    Those commits are the first (head) commit of branch in svn that is
-    associated with that tag. If you want to see all the branches and tags
-    and their relationships in gitk you can run the following: gitk --all
-    
-    For further details please refer to FAQ #2.
-    
-2. Why don't you reference the parent of the tag commits instead?
+    Similar to a git annotated tag, a svn tag is the current source tree copied
+    into another path (typically /tags). Using `svn copy` allows copying local
+    changes and files manually updated to an arbitrary revision which become
+    part of the tag commit. This mixed history commit is referred to as a
+    complex tag and there is no parallel in git.
 
-    In svn you are forced to create what are known in git as annotated tags.
-    It just so happens that svn annotated tags allow you to commit change
-    sets along with the tagging action. This means that the svn annotated tag
-    is a bit more complex then just an annotated tag it is a commit which is
-    treated as an annotated tag. Hence, for there to be a true 1-to-1 mapping
-    between git and svn we have to transfer over the svn commit which acts as
-    an annotated tag and then tag that commit in git using an annotated tag.
-    
-    If we were to reference the parent of this svn tagged commit there could
-    potentially be situations where a developer would checkout a tag in git
-    and the resulting code base would be different than if they checked out
-    that very same tag in the original svn repo. This is only due to the fact
-    that the svn tags allow changesets in them, making them not just annotated
-    tags.
+    If you need to support this behavior you can use the `--complextags` option.
 
+    The tags won't show up in the master branch because the tags are tied to a
+    commit in the branch that was created by git-svn converting the tags
+    directory, which is deleted locally by svn2git after making an annotated
+    tag. If you want to see all the branches and tags and their relationships
+    in gitk you can run the following: `gitk --all`

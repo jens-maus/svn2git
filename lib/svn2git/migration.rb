@@ -5,6 +5,7 @@ require 'thread'
 
 module Svn2Git
   DEFAULT_AUTHORS_FILE = "~/.svn2git/authors"
+  DEFAULT_AUTHORS_PROG = "~/.svn2git/authors-prog"
 
   class Migration
 
@@ -54,9 +55,14 @@ module Svn2Git
       options[:username] = nil
       options[:password] = nil
       options[:rebasebranch] = false
+      options[:complextags] = false
 
       if File.exists?(File.expand_path(DEFAULT_AUTHORS_FILE))
         options[:authors] = DEFAULT_AUTHORS_FILE
+      end
+
+      if File.exists?(File.expand_path(DEFAULT_AUTHORS_PROG))
+        options[:authorsprog] = DEFAULT_AUTHORS_PROG
       end
 
 
@@ -122,8 +128,16 @@ module Svn2Git
           options[:metadata] = true
         end
 
+        opts.on('--complextags', 'Create tags from the tag commit instead the tag commit parent') do
+          options[:complextags] = true
+        end
+
         opts.on('--authors AUTHORS_FILE', "Path to file containing svn-to-git authors mapping (default: #{DEFAULT_AUTHORS_FILE})") do |authors|
           options[:authors] = authors
+        end
+
+        opts.on('--authors-prog AUTHORS_PROG', "Path to script containing svn-to-git authors mapping (default: #{DEFAULT_AUTHORS_PROG})") do |authorsprog|
+          options[:authorsprog] = authorsprog
         end
 
         opts.on('--exclude REGEX', 'Specify a Perl regular expression to filter paths when fetching; can be used multiple times') do |regex|
@@ -183,6 +197,7 @@ module Svn2Git
       nominimizeurl = @options[:nominimizeurl]
       rootistrunk = @options[:rootistrunk]
       authors = @options[:authors]
+      authorsprog = @options[:authorsprog]
       exclude = @options[:exclude]
       revision = @options[:revision]
       username = @options[:username]
@@ -226,6 +241,7 @@ module Svn2Git
       run_command("#{git_config_command} svn.authorsfile #{authors}") unless authors.nil?
 
       cmd = "git svn fetch "
+      cmd += "--authors-prog=#{authorsprog} " unless authorsprog.nil?
       unless revision.nil?
         range = revision.split(":")
         range[1] = "HEAD" unless range[1]
@@ -260,11 +276,11 @@ module Svn2Git
     end
 
     def get_rebasebranch
-	  get_branches 
+	  get_branches
 	  @local = @local.find_all{|l| l == @options[:rebasebranch]}
 	  @remote = @remote.find_all{|r| r.include? @options[:rebasebranch]}
 
-      if @local.count > 1 
+      if @local.count > 1
         pp "To many matching branches found (#{@local})."
         exit 1
       elsif @local.count == 0
@@ -303,7 +319,11 @@ module Svn2Git
 
         original_git_committer_date = ENV['GIT_COMMITTER_DATE']
         ENV['GIT_COMMITTER_DATE'] = escape_quotes(date)
-        run_command("git tag -a -m \"#{escape_quotes(subject)}\" \"#{escape_quotes(id)}\" \"#{escape_quotes(tag)}\"")
+        if @options[:complextags]
+            run_command("git tag -a -m \"#{escape_quotes(subject)}\" \"#{escape_quotes(id)}\" \"#{escape_quotes(tag)}\"")
+        else
+            run_command("git tag -a -m \"#{escape_quotes(subject)}\" \"#{escape_quotes(id)}\" \"#{escape_quotes(tag)}^\"")
+        end
         ENV['GIT_COMMITTER_DATE'] = original_git_committer_date
 
         run_command("git branch -d -r \"#{escape_quotes(tag)}\"")
@@ -325,11 +345,14 @@ module Svn2Git
     end
 
     def fix_branches
+      authorsprog = @options[:authorsprog]
       svn_branches = @remote - @tags
       svn_branches.delete_if { |b| b.strip !~ %r{^svn\/} }
 
       if @options[:rebase]
-         run_command("git svn fetch", true, true)
+         cmd = "git svn fetch"
+         cmd += " --authors-prog=#{authorsprog}" unless authorsprog.nil?
+         run_command(cmd, true, true)
       end
 
       svn_branches.each do |branch|
@@ -447,7 +470,7 @@ module Svn2Git
 
       if exit_on_error && $?.exitstatus != 0
         $stderr.puts "command failed:\n#{cmd}"
-        exit -1
+        exit(-1)
       end
 
       ret
@@ -467,7 +490,7 @@ module Svn2Git
       status = run_command('git status --porcelain --untracked-files=no')
       unless status.strip == ''
         puts 'You have local pending changes.  The working tree must be clean in order to continue.'
-        exit -1
+        exit(-1)
       end
     end
 
